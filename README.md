@@ -69,6 +69,17 @@ Restart Claude Desktop and it gains six tools: `store_memory`, `search_memories`
 
 Note: run either the REST API or the MCP server against the dataset at one time — the local Deep Lake dataset isn't designed for two writer processes at once.
 
+## Burn test (release gate)
+
+Before trusting a new version, run the full live burn test — it boots the real server as a process and attacks it over actual HTTP:
+
+```powershell
+python burn_test.py          # real embeddings
+python burn_test.py --stub   # fast smoke run
+```
+
+Eight phases: cold boot, functional sweep of every endpoint, 300-op / 16-thread load with latency report, **SIGKILL mid-write + recovery**, backup round-trip, live auth checks, a real MCP stdio client session, and restart persistence. Exit code 0 only when everything passes.
+
 ## AI-powered bug triage
 
 `doctor.py` auto-fixes environment problems. For actual **logic bugs**, `triage.py` uses Claude to read the failing tests and your source, then points you at the exact spot:
@@ -86,6 +97,7 @@ Output per finding: file, function, line range, root cause, a suggested patch, a
 ```
 server.py                REST API (FastAPI + uvicorn)
 doctor.py                auto-fixes environment issues, runs tests
+burn_test.py             live burn test: boots real server, load, crash-kill, MCP stdio
 triage.py                AI triage: pinpoints logic bugs in source
 mcp_server.py            MCP server (stdio) for Claude Desktop
 memory_engine/
