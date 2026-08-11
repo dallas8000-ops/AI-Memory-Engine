@@ -2,15 +2,16 @@
 .venv/
 .env
 
-# Memory data (never commit your memories or backups)
+# The memory database (backups belong elsewhere, not in git)
 data/
-*_backup_*/
-*_corrupt_*/
 
 # Python
 __pycache__/
 *.pyc
 *.egg-info/
 
-# Burn-test harness scratch
-_burn/__pycache__/
+# Editors / OS
+.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
