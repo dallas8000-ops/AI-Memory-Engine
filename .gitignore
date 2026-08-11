@@ -1,0 +1,16 @@
+# Environment & secrets
+.venv/
+.env
+
+# Memory data (never commit your memories or backups)
+data/
+*_backup_*/
+*_corrupt_*/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Burn-test harness scratch
+_burn/__pycache__/

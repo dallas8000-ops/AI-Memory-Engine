@@ -1,0 +1,8 @@
+deeplake
+fastapi
+uvicorn
+sentence-transformers
+mcp[cli]
+pydantic
+python-dotenv
+anthropic
