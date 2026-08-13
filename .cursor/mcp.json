@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "ai-memory-engine": {
+      "command": "C:\\Software Projects\\AI Memory Engine\\.venv\\Scripts\\python.exe",
+      "args": [
+        "C:\\Software Projects\\AI Memory Engine\\mcp_server.py"
+      ]
+    }
+  }
+}

@@ -159,7 +159,7 @@ def check_main_dataset(model_dim: int | None):
 
     uri = path.absolute().as_uri()
     try:
-        ds = deeplake.open(uri)
+        ds = deeplake.load(str(path), verbose=False)
         n = len(ds)
         say(f"  opens fine, {n} memories")
     except Exception as e:
@@ -177,7 +177,7 @@ def check_main_dataset(model_dim: int | None):
     try:
         import numpy as np
 
-        stored_dim = int(np.asarray(ds["embedding"][0]).shape[-1])
+        stored_dim = int(np.asarray(ds["embedding"][0].numpy()).shape[-1])
     except Exception:
         return
     if stored_dim == model_dim:
@@ -186,8 +186,8 @@ def check_main_dataset(model_dim: int | None):
     if CHECK_ONLY:
         needs_human("Re-embed the dataset (run doctor.py without --check)")
         return
-    texts = list(ds["text"][:])
-    tags = list(ds["tags"][:])
+    texts = ds["text"][:].numpy().reshape(-1).tolist()
+    tags = ds["tags"][:].numpy().reshape(-1).tolist()
     del ds
     backup = path.with_name(f"memories_backup_{datetime.now():%Y%m%d_%H%M%S}")
     shutil.move(str(path), str(backup))

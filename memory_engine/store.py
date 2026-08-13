@@ -21,6 +21,7 @@ Schema (one row per memory):
 from __future__ import annotations
 
 import logging
+import shutil
 import threading
 import uuid
 from datetime import datetime, timezone
@@ -64,7 +65,8 @@ def _now() -> str:
 def _to_uri(path: str) -> str:
     if "://" in path:
         return path
-    return Path(path).absolute().as_uri()
+    # Deep Lake 3.x expects local filesystem paths, not file:// URIs.
+    return str(Path(path).absolute())
 
 
 def _clean_tags(tags: list[str] | None) -> list[str]:
@@ -91,9 +93,9 @@ class MemoryStore:
     # ── dataset lifecycle ────────────────────────────────────────────────
     def _open_or_create(self):
         try:
-            ds = deeplake.open(self.uri)
+            ds = deeplake.load(self.uri, verbose=False)
             # sanity: required columns present?
-            cols = {c.name for c in ds.schema.columns}
+            cols = set(ds.tensors.keys())
             required = {"id", "text", "tags", "created_at", "updated_at", "embedding"}
             if not required.issubset(cols):
                 raise StorageError(
@@ -106,19 +108,19 @@ class MemoryStore:
         except Exception:
             log.info("Creating new dataset at %s", self.uri)
             try:
-                ds = deeplake.create(self.uri)
-                ds.add_column("id", deeplake.types.Text())
-                ds.add_column("text", deeplake.types.Text())
-                ds.add_column("tags", deeplake.types.Text())
-                ds.add_column("created_at", deeplake.types.Text())
-                ds.add_column("updated_at", deeplake.types.Text())
-                ds.add_column("embedding", deeplake.types.Embedding(self.embedder.dim))
-                ds.commit()
-                return ds
+                return self._create_dataset(self.uri)
             except Exception as e:
                 raise StorageError(
                     f"Could not open or create the dataset at {self.uri}: {e}"
                 ) from e
+
+    def _create_dataset(self, path: str):
+        ds = deeplake.empty(path, verbose=False)
+        for name in ("id", "text", "tags", "created_at", "updated_at"):
+            ds.create_tensor(name, htype="text", dtype="str", verbose=False)
+        ds.create_tensor("embedding", htype="embedding", dtype="float32", verbose=False)
+        ds.commit(message="create memory schema")
+        return ds
 
     # ── validation ───────────────────────────────────────────────────────
     @staticmethod
@@ -155,7 +157,7 @@ class MemoryStore:
                 "updated_at": now,
             }
             try:
-                self.ds.append({**{k: [v] for k, v in record.items()}, "embedding": [vec]})
+                self.ds.append({**record, "embedding": vec})
                 self.ds.commit()
             except Exception as e:
                 raise StorageError(f"Failed to write memory: {e}") from e
@@ -208,16 +210,16 @@ class MemoryStore:
         arr = ",".join(str(float(x)) for x in qvec)
         k = max(1, min(int(k), len(self.ds)))
         try:
-            view = self.ds.query(
-                f"SELECT * ORDER BY COSINE_SIMILARITY(embedding, ARRAY[{arr}]) DESC LIMIT {k}"
-            )
+            # Deep Lake 3.x SQL queries require libdeeplake, unavailable on Windows.
+            rows = []
+            for idx in range(len(self.ds)):
+                row = self._row_at(idx)
+                score = self._cosine(qvec, self._tensor_value("embedding", idx))
+                rows.append(self._row_to_dict(row, score=score))
+            rows.sort(key=lambda row: row["score"], reverse=True)
+            return rows[:k]
         except Exception as e:
             raise StorageError(f"Search failed: {e}") from e
-        out = []
-        for row in view:
-            emb = np.asarray(row["embedding"], dtype=np.float32)
-            out.append(self._row_to_dict(row, score=self._cosine(qvec, emb)))
-        return out
 
     def update(
         self, memory_id: str, text: str | None = None, tags: list[str] | None = None
@@ -230,15 +232,24 @@ class MemoryStore:
             if idx is None:
                 raise NotFoundError(f"No memory with id {memory_id}.")
             try:
+                record = self._record_at(idx)
+                embedding = self._tensor_value("embedding", idx)
                 if text is not None:
                     text = self._validate_text(text)
-                    self.ds["text"][idx] = text
-                    self.ds["embedding"][idx] = self.embedder.embed(text)
+                    record["text"] = text
+                    embedding = self.embedder.embed(text)
                 if tags is not None:
-                    self.ds["tags"][idx] = ",".join(_clean_tags(tags))
-                self.ds["updated_at"][idx] = _now()
-                self.ds.commit()
-                return self._record_at(idx)
+                    record["tags"] = _clean_tags(tags)
+                record["updated_at"] = _now()
+                rows = []
+                for row_idx in range(len(self.ds)):
+                    row = self._row_at(row_idx)
+                    row["tags"] = self._split_tags(row["tags"])
+                    row["embedding"] = self._tensor_value("embedding", row_idx)
+                    rows.append(record if row_idx == idx else row)
+                rows[idx]["embedding"] = embedding
+                self._rewrite_dataset(rows)
+                return {**record, "tags": record["tags"]}
             except MemoryStoreError:
                 raise
             except Exception as e:
@@ -270,8 +281,15 @@ class MemoryStore:
             if idx is None:
                 return False
             try:
-                self.ds.delete(idx)
-                self.ds.commit()
+                rows = []
+                for row_idx in range(len(self.ds)):
+                    if row_idx == idx:
+                        continue
+                    row = self._row_at(row_idx)
+                    row["tags"] = self._split_tags(row["tags"])
+                    row["embedding"] = self._tensor_value("embedding", row_idx)
+                    rows.append(row)
+                self._rewrite_dataset(rows)
             except Exception as e:
                 raise StorageError(f"Failed to delete memory: {e}") from e
             log.info("Deleted memory %s", memory_id)
@@ -283,11 +301,11 @@ class MemoryStore:
             tag_counts: dict[str, int] = {}
             newest = oldest = None
             if n:
-                for t in self.ds["tags"][:]:
+                for t in self._tensor_values("tags"):
                     for tag in (t or "").split(","):
                         if tag:
                             tag_counts[tag] = tag_counts.get(tag, 0) + 1
-                stamps = list(self.ds["created_at"][:])
+                stamps = self._tensor_values("created_at")
                 newest, oldest = max(stamps), min(stamps)
         return {
             "total_memories": n,
@@ -322,7 +340,7 @@ class MemoryStore:
 
     # ── helpers ──────────────────────────────────────────────────────────
     def _index_of(self, memory_id: str) -> int | None:
-        ids = list(self.ds["id"][:])
+        ids = self._tensor_values("id")
         try:
             return ids.index(memory_id)
         except ValueError:
@@ -330,12 +348,60 @@ class MemoryStore:
 
     def _record_at(self, idx: int) -> dict[str, Any]:
         return {
-            "id": self.ds["id"][idx],
-            "text": self.ds["text"][idx],
-            "tags": self._split_tags(self.ds["tags"][idx]),
-            "created_at": self.ds["created_at"][idx],
-            "updated_at": self.ds["updated_at"][idx],
+            "id": self._tensor_value("id", idx),
+            "text": self._tensor_value("text", idx),
+            "tags": self._split_tags(self._tensor_value("tags", idx)),
+            "created_at": self._tensor_value("created_at", idx),
+            "updated_at": self._tensor_value("updated_at", idx),
         }
+
+    def _row_at(self, idx: int) -> dict[str, Any]:
+        return {
+            "id": self._tensor_value("id", idx),
+            "text": self._tensor_value("text", idx),
+            "tags": self._tensor_value("tags", idx),
+            "created_at": self._tensor_value("created_at", idx),
+            "updated_at": self._tensor_value("updated_at", idx),
+        }
+
+    def _tensor_values(self, name: str) -> list[Any]:
+        values = self.ds[name][:].numpy()
+        return np.asarray(values).reshape(-1).tolist()
+
+    def _tensor_value(self, name: str, idx: int) -> Any:
+        value = self.ds[name][idx].numpy()
+        array = np.asarray(value)
+        return array.reshape(-1)[0].item() if array.size == 1 else value
+
+    def _rewrite_dataset(self, rows: list[dict[str, Any]]) -> None:
+        path = Path(self.uri)
+        temp_path = path.with_name(f"{path.name}.rewrite-{uuid.uuid4().hex}")
+        temp_ds = None
+        try:
+            temp_ds = self._create_dataset(str(temp_path))
+            for row in rows:
+                temp_ds.append({
+                    "id": row["id"],
+                    "text": row["text"],
+                    "tags": ",".join(row["tags"]),
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"],
+                    "embedding": row["embedding"],
+                })
+            temp_ds.commit(message="rewrite updated memory")
+            close = getattr(self.ds, "close", None)
+            if close:
+                close()
+            shutil.rmtree(path)
+            shutil.move(str(temp_path), str(path))
+            self.ds = deeplake.load(self.uri, verbose=False)
+        except Exception:
+            if temp_ds is not None:
+                close = getattr(temp_ds, "close", None)
+                if close:
+                    close()
+            shutil.rmtree(temp_path, ignore_errors=True)
+            raise
 
     @staticmethod
     def _cosine(a: np.ndarray, b: np.ndarray) -> float:

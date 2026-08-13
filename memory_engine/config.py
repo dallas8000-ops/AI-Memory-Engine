@@ -6,8 +6,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _resolve_data_path(raw_path: str) -> str:
+    # Keep explicit URI-style paths untouched (e.g. hub://...).
+    if "://" in raw_path:
+        return raw_path
+    p = Path(raw_path)
+    if p.is_absolute():
+        return str(p)
+    return str((PROJECT_ROOT / p).resolve())
+
 # Where the Deep Lake dataset lives (local folder by default)
-DATA_PATH = os.getenv("MEMORY_DATA_PATH", str(Path("data") / "memories"))
+DATA_PATH = _resolve_data_path(os.getenv("MEMORY_DATA_PATH", str(Path("data") / "memories")))
 
 # Sentence-transformers model used for embeddings.
 # all-MiniLM-L6-v2 -> 384-dim, small, fast, good general-purpose quality.
