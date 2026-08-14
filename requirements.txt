@@ -1,4 +1,4 @@
-deeplake
+deeplake<4
 fastapi
 uvicorn
 sentence-transformers
