@@ -38,6 +38,7 @@ store: MemoryStore | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global store
+    config.validate_deployment_config()
     log.info("Starting AI Memory Engine (model warm-up on first request)...")
     store = MemoryStore()
     yield

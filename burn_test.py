@@ -107,12 +107,13 @@ def start_server(api_key: str = "") -> subprocess.Popen:
     script = BOOT_SNIPPET.format(root=str(ROOT), port=PORT)
     proc = subprocess.Popen(
         [sys.executable, "-c", script], cwd=ROOT, env=env,
-        stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
     )
     deadline = time.time() + 120
     while time.time() < deadline:
         if proc.poll() is not None:
-            raise RuntimeError("Server process died during boot")
+            output = proc.stdout.read()[-2000:] if proc.stdout else ""
+            raise RuntimeError(f"Server process died during boot:\n{output}")
         try:
             code, _ = req("GET", "/health", timeout=2)
             if code == 200:
@@ -127,7 +128,10 @@ def start_server(api_key: str = "") -> subprocess.Popen:
 def stop_server(proc: subprocess.Popen | None, hard: bool = False):
     if proc is None or proc.poll() is not None:
         return
-    proc.send_signal(signal.SIGKILL if hard else signal.SIGTERM)
+    if hard and os.name == "nt":
+        proc.kill()
+    else:
+        proc.send_signal(signal.SIGKILL if hard else signal.SIGTERM)
     try:
         proc.wait(timeout=15)
     except subprocess.TimeoutExpired:

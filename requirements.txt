@@ -1,6 +1,8 @@
-deeplake<4
+# Latest Deep Lake 3 release. Version 4 uses a breaking storage API.
+deeplake==3.9.52
 fastapi
-uvicorn
+# Deep Lake 3 patches asyncio.run without Uvicorn 0.36+'s loop_factory argument.
+uvicorn>=0.30,<0.36
 sentence-transformers
 mcp[cli]
 pydantic

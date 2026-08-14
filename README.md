@@ -117,3 +117,20 @@ data/memories/           the vector database (created on first run)
 | `MEMORY_API_HOST` / `MEMORY_API_PORT` | `127.0.0.1:8000` | API bind address |
 | `MEMORY_API_KEY` | *(empty)* | When set, API requires `X-API-Key` header |
 | `MEMORY_CORS_ORIGINS` | `http://localhost:3000` | Allowed browser origins |
+
+## Railway deployment
+
+The memory database must be on persistent storage. Railway containers are replaceable, so never deploy with the default `data/memories` path.
+
+1. Create a Railway Volume and mount it at `/data`.
+2. In the Railway service Variables, set:
+
+  ```text
+  MEMORY_DATA_PATH=/data/memories
+  MEMORY_API_KEY=<a-long-random-secret>
+  MEMORY_CORS_ORIGINS=https://<your-web-app-domain>
+  ```
+
+3. Deploy with the repository's `railway.toml`. Railway supplies `PORT`; the service binds to it automatically and Railway probes `GET /health`.
+
+The application intentionally refuses to start on Railway unless `MEMORY_DATA_PATH` and `MEMORY_API_KEY` are configured. This prevents both memory loss after a container replacement and unauthenticated public access to stored memories.

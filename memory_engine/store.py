@@ -140,9 +140,9 @@ class MemoryStore:
         """
         text = self._validate_text(text)
         tags = _clean_tags(tags)
-        vec = self.embedder.embed(text)
 
         with self._lock:
+            vec = self.embedder.embed(text)
             dup = self._find_near_duplicate(text, vec)
             if dup and dup["exact"]:
                 log.info("Duplicate add ignored (id=%s)", dup["record"]["id"])
@@ -193,8 +193,8 @@ class MemoryStore:
     ) -> list[dict[str, Any]]:
         """Semantic top-k search with optional tag filter and score floor."""
         query = self._validate_text(query)
-        qvec = self.embedder.embed(query)
         with self._lock:
+            qvec = self.embedder.embed(query)
             if len(self.ds) == 0:
                 return []
             # over-fetch when filtering by tag so k survives the filter
@@ -207,17 +207,17 @@ class MemoryStore:
         return hits[:k]
 
     def _raw_search(self, qvec: np.ndarray, k: int) -> list[dict[str, Any]]:
-        arr = ",".join(str(float(x)) for x in qvec)
         k = max(1, min(int(k), len(self.ds)))
         try:
             # Deep Lake 3.x SQL queries require libdeeplake, unavailable on Windows.
+            embeddings = np.asarray(self.ds["embedding"][:].numpy(), dtype=np.float32)
+            scores = embeddings @ qvec
+            indices = np.argsort(scores)[::-1][:k]
             rows = []
-            for idx in range(len(self.ds)):
-                row = self._row_at(idx)
-                score = self._cosine(qvec, self._tensor_value("embedding", idx))
-                rows.append(self._row_to_dict(row, score=score))
-            rows.sort(key=lambda row: row["score"], reverse=True)
-            return rows[:k]
+            for idx in indices:
+                row = self._row_at(int(idx))
+                rows.append(self._row_to_dict(row, score=round(float(scores[idx]), 4)))
+            return rows
         except Exception as e:
             raise StorageError(f"Search failed: {e}") from e
 
