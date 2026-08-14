@@ -26,9 +26,9 @@ DATA_PATH = _resolve_data_path(os.getenv("MEMORY_DATA_PATH", str(Path("data") / 
 EMBED_MODEL = os.getenv("MEMORY_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 EMBED_DIM = int(os.getenv("MEMORY_EMBED_DIM", "384"))
 
-# API server settings
+# API server settings — Railway injects PORT; MEMORY_API_PORT still wins if set explicitly.
 API_HOST = os.getenv("MEMORY_API_HOST", "127.0.0.1")
-API_PORT = int(os.getenv("MEMORY_API_PORT", "8000"))
+API_PORT = int(os.getenv("MEMORY_API_PORT", os.getenv("PORT", "8000")))
 
 # Optional API key. When set, every route except /health requires the
 # X-API-Key header. Leave empty for local-only development.
