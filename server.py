@@ -11,10 +11,11 @@ from __future__ import annotations
 import logging
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 
@@ -33,6 +34,7 @@ logging.basicConfig(
 log = logging.getLogger("memory_engine.api")
 
 store: MemoryStore | None = None
+WEB_ROOT = Path(__file__).parent / "web"
 
 
 @asynccontextmanager
@@ -135,7 +137,7 @@ class ImportIn(BaseModel):
 # ── routes ───────────────────────────────────────────────────────────────
 @app.get("/", include_in_schema=False)
 def root():
-    return RedirectResponse(url="/docs")
+    return FileResponse(WEB_ROOT / "index.html")
 
 
 @app.get("/health")

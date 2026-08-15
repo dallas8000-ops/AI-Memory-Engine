@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Store and recall durable semantic memories.">
+  <title>AI Memory Engine</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f4f1e8;
+      --muted: #aaa99f;
+      --surface: #181a1d;
+      --surface-raised: #22252a;
+      --line: #363a40;
+      --green: #72d6a0;
+      --yellow: #f3c969;
+      --red: #ff877c;
+      --page: #101214;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px),
+        var(--page);
+      background-size: 32px 32px;
+      font-family: "Segoe UI", sans-serif;
+    }
+
+    button, input, textarea { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+
+    .shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 82px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      color: #101214;
+      background: var(--green);
+      font: 800 17px/1 Georgia, serif;
+    }
+    h1 { margin: 0; font: 700 21px/1.1 Georgia, serif; letter-spacing: 0; }
+    .eyebrow { margin: 4px 0 0; color: var(--muted); font-size: 12px; text-transform: uppercase; }
+
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .status { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); }
+    .status-dot.online { background: var(--green); box-shadow: 0 0 0 4px rgba(114,214,160,.12); }
+    .status-dot.offline { background: var(--red); }
+
+    a { color: var(--ink); text-decoration: none; }
+    .docs-link { padding: 9px 12px; border: 1px solid var(--line); font-size: 13px; }
+    .docs-link:hover { border-color: var(--green); }
+
+    main { padding: 44px 0 60px; }
+    .intro { display: grid; grid-template-columns: 1.3fr .7fr; gap: 28px; align-items: end; margin-bottom: 28px; }
+    h2 { max-width: 720px; margin: 0; font: 700 clamp(34px, 5vw, 62px)/.98 Georgia, serif; letter-spacing: 0; }
+    .intro-copy { margin: 0; color: var(--muted); line-height: 1.65; }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); margin-bottom: 20px; }
+    .stat { min-height: 90px; padding: 18px 20px; background: rgba(24,26,29,.88); }
+    .stat + .stat { border-left: 1px solid var(--line); }
+    .stat-label { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+    .stat-value { margin-top: 9px; font: 700 26px/1 Georgia, serif; }
+
+    .workspace { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr); gap: 20px; }
+    .panel { border: 1px solid var(--line); background: rgba(24,26,29,.94); }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+    h3 { margin: 0; font: 700 18px/1 Georgia, serif; }
+    .panel-body { padding: 20px; }
+
+    label { display: block; margin-bottom: 8px; color: var(--muted); font-size: 12px; text-transform: uppercase; }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 0;
+      outline: none;
+      color: var(--ink);
+      background: #111315;
+    }
+    input { height: 44px; padding: 0 12px; }
+    textarea { min-height: 150px; padding: 12px; resize: vertical; line-height: 1.5; }
+    input:focus, textarea:focus { border-color: var(--green); }
+    .field + .field { margin-top: 16px; }
+
+    .button {
+      min-height: 42px;
+      padding: 0 16px;
+      border: 1px solid var(--green);
+      border-radius: 0;
+      color: #0c1611;
+      background: var(--green);
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .button:hover { filter: brightness(1.08); }
+    .button:disabled { cursor: wait; opacity: .6; }
+    .button.secondary { color: var(--ink); background: transparent; border-color: var(--line); }
+    .button-row { display: flex; gap: 10px; margin-top: 18px; }
+
+    .key-box { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-bottom: 20px; }
+    .key-note { margin: -10px 0 20px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+    .search-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+    .memory-list { display: grid; gap: 10px; margin-top: 18px; }
+    .memory {
+      padding: 16px;
+      border-left: 3px solid var(--green);
+      background: var(--surface-raised);
+    }
+    .memory p { margin: 0 0 12px; white-space: pre-wrap; line-height: 1.5; }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 12px; }
+    .tag { padding: 3px 7px; color: var(--ink); background: #30353a; }
+    .empty { padding: 42px 20px; text-align: center; color: var(--muted); border: 1px dashed var(--line); }
+    .message { min-height: 20px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+    .message.error { color: var(--red); }
+    .message.success { color: var(--green); }
+
+    @media (max-width: 760px) {
+      .shell { width: min(100% - 22px, 1180px); }
+      header { align-items: flex-start; padding: 16px 0; }
+      .eyebrow, .status span:last-child { display: none; }
+      .intro, .workspace { grid-template-columns: 1fr; }
+      .intro { gap: 16px; margin-bottom: 22px; }
+      main { padding-top: 30px; }
+      .stats { grid-template-columns: 1fr; }
+      .stat { min-height: 70px; }
+      .stat + .stat { border-left: 0; border-top: 1px solid var(--line); }
+      .search-row, .key-box { grid-template-columns: 1fr; }
+      .button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand">
+        <div class="brand-mark">M</div>
+        <div>
+          <h1>AI Memory Engine</h1>
+          <p class="eyebrow">Durable semantic recall</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="status"><i id="statusDot" class="status-dot"></i><span id="statusText">Checking</span></div>
+        <a class="docs-link" href="/docs">API docs</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="intro">
+        <h2>Remember by meaning, not exact words.</h2>
+        <p class="intro-copy">Store durable facts and notes, then retrieve the most relevant context through semantic search.</p>
+      </section>
+
+      <section class="stats" aria-label="Service statistics">
+        <div class="stat"><div class="stat-label">Service</div><div id="serviceStat" class="stat-value">Checking</div></div>
+        <div class="stat"><div class="stat-label">Memories</div><div id="memoryStat" class="stat-value">--</div></div>
+        <div class="stat"><div class="stat-label">Access</div><div id="authStat" class="stat-value">--</div></div>
+      </section>
+
+      <section class="workspace">
+        <div class="panel">
+          <div class="panel-head"><h3>Store a memory</h3></div>
+          <div class="panel-body">
+            <div class="field">
+              <label for="apiKey">API key</label>
+              <div class="key-box">
+                <input id="apiKey" type="password" autocomplete="off" placeholder="X-API-Key">
+                <button id="connectButton" class="button secondary" type="button">Connect</button>
+              </div>
+              <p class="key-note">Kept only in this browser tab and sent directly to this service.</p>
+            </div>
+            <form id="memoryForm">
+              <div class="field">
+                <label for="memoryText">Memory</label>
+                <textarea id="memoryText" maxlength="10000" required placeholder="The production deployment uses a persistent Railway volume..."></textarea>
+              </div>
+              <div class="field">
+                <label for="memoryTags">Tags</label>
+                <input id="memoryTags" type="text" placeholder="deployment, railway, production">
+              </div>
+              <div class="button-row"><button id="saveButton" class="button" type="submit">Store memory</button></div>
+              <output id="formMessage" class="message"></output>
+            </form>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>Recall</h3><button id="browseButton" class="button secondary" type="button">Browse recent</button></div>
+          <div class="panel-body">
+            <form id="searchForm" class="search-row">
+              <label class="sr-only" for="searchQuery">Search memories</label>
+              <input id="searchQuery" type="search" required placeholder="What do I remember about deployment?">
+              <button id="searchButton" class="button" type="submit">Search</button>
+            </form>
+            <output id="listMessage" class="message"></output>
+            <div id="memoryList" class="memory-list"><div class="empty">Enter the API key to browse protected memories.</div></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module">
+    const elements = Object.fromEntries([
+      "apiKey", "authStat", "browseButton", "connectButton", "formMessage", "listMessage",
+      "memoryForm", "memoryList", "memoryStat", "memoryTags", "memoryText", "saveButton",
+      "searchButton", "searchForm", "searchQuery", "serviceStat", "statusDot", "statusText"
+    ].map((id) => [id, document.getElementById(id)]));
+
+    const headers = () => ({
+      "Content-Type": "application/json",
+      ...(elements.apiKey.value ? { "X-API-Key": elements.apiKey.value } : {})
+    });
+
+    async function request(path, options = {}) {
+      const response = await fetch(path, { ...options, headers: { ...headers(), ...options.headers } });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.detail || `Request failed (${response.status})`);
+      }
+      return response.status === 204 ? null : response.json();
+    }
+
+    function setMessage(target, text = "", type = "") {
+      target.textContent = text;
+      target.className = `message ${type}`.trim();
+    }
+
+    function escapeHtml(value) {
+      const node = document.createElement("div");
+      node.textContent = String(value);
+      return node.innerHTML;
+    }
+
+    function renderMemories(items) {
+      if (!items.length) {
+        elements.memoryList.innerHTML = '<div class="empty">No matching memories found.</div>';
+        return;
+      }
+      elements.memoryList.innerHTML = items.map((item) => `
+        <article class="memory">
+          <p>${escapeHtml(item.text)}</p>
+          <div class="meta">
+            ${(item.tags || []).map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}
+            ${typeof item.score === "number" ? `<span>${Math.round(item.score * 100)}% match</span>` : ""}
+          </div>
+        </article>`).join("");
+    }
+
+    async function checkHealth() {
+      try {
+        const health = await request("/health");
+        elements.statusDot.className = "status-dot online";
+        elements.statusText.textContent = "Online";
+        elements.serviceStat.textContent = "Online";
+        elements.memoryStat.textContent = health.memories;
+        elements.authStat.textContent = health.auth ? "Protected" : "Open";
+      } catch {
+        elements.statusDot.className = "status-dot offline";
+        elements.statusText.textContent = "Offline";
+        elements.serviceStat.textContent = "Offline";
+      }
+    }
+
+    async function browse() {
+      setMessage(elements.listMessage, "Loading...");
+      try {
+        const page = await request("/memories?limit=20");
+        renderMemories(page.items);
+        elements.memoryStat.textContent = page.total;
+        setMessage(elements.listMessage, `${page.total} memories available`, "success");
+      } catch (error) {
+        setMessage(elements.listMessage, error.message, "error");
+      }
+    }
+
+    elements.connectButton.addEventListener("click", browse);
+    elements.browseButton.addEventListener("click", browse);
+
+    elements.searchForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      elements.searchButton.disabled = true;
+      setMessage(elements.listMessage, "Searching semantic index...");
+      try {
+        const items = await request(`/memories/search?q=${encodeURIComponent(elements.searchQuery.value)}&k=10`);
+        renderMemories(items);
+        setMessage(elements.listMessage, `${items.length} relevant memories found`, "success");
+      } catch (error) {
+        setMessage(elements.listMessage, error.message, "error");
+      } finally {
+        elements.searchButton.disabled = false;
+      }
+    });
+
+    elements.memoryForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      elements.saveButton.disabled = true;
+      setMessage(elements.formMessage, "Storing memory...");
+      try {
+        const tags = elements.memoryTags.value.split(",").map((tag) => tag.trim()).filter(Boolean);
+        await request("/memories", {
+          method: "POST",
+          body: JSON.stringify({ text: elements.memoryText.value, tags })
+        });
+        elements.memoryForm.reset();
+        setMessage(elements.formMessage, "Memory stored.", "success");
+        await checkHealth();
+        await browse();
+      } catch (error) {
+        setMessage(elements.formMessage, error.message, "error");
+      } finally {
+        elements.saveButton.disabled = false;
+      }
+    });
+
+    await checkHealth();
+  </script>
+</body>
+</html>
