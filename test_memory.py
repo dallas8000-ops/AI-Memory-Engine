@@ -105,6 +105,34 @@ def main():
     hits = store2.search("what is my pet called", k=1)
     check("search works after reopen", "Momo" in hits[0]["text"])
 
+    print("\n8. Agent attribution + change feed")
+    base = store2.feed(limit=1000)["cursor"]
+    a = store2.add("Claude found a race in the retry loop", source_agent="Claude",
+                   session_id="s-1")
+    check("agent lowercased on write", a["source_agent"] == "claude", str(a["source_agent"]))
+    check("session recorded", a["session_id"] == "s-1", str(a["session_id"]))
+    b = store2.add("Cursor confirmed the retry fix", source_agent="cursor")
+    check("unattributed default", store2.add("plain note")["source_agent"] == "unknown")
+
+    f = store2.feed(cursor=base)
+    check("feed returns the new rows", f["count"] == 3, str(f["count"]))
+    check("feed is in log order", [i["seq"] for i in f["items"]] == sorted(i["seq"] for i in f["items"]))
+    check("feed marks them as adds", all(i["op"] == "add" for i in f["items"]))
+    check("repolling the cursor is empty", store2.feed(cursor=f["cursor"])["count"] == 0)
+    check("agent filter", store2.feed(cursor=base, agent="claude")["count"] == 1)
+
+    store2.update(a["id"], text="Claude found a race; cursor fixed it", source_agent="cursor")
+    fe = store2.feed(cursor=f["cursor"])
+    check("edit shows as edit op", fe["count"] == 1 and fe["items"][0]["op"] == "edit", str(fe["items"]))
+    check("edit attributed to editor", fe["items"][0]["source_agent"] == "cursor")
+
+    store2.delete(b["id"], source_agent="claude")
+    fd = store2.feed(cursor=fe["cursor"])
+    check("delete shows as delete op", fd["count"] == 1 and fd["items"][0]["op"] == "delete")
+    check("tombstone is not current", fd["items"][0]["current"] is False)
+    check("agents in stats", store2.stats()["agents"].get("cursor", 0) >= 1,
+          str(store2.stats()["agents"]))
+
     del store, store2
     shutil.rmtree(TEST_PATH, ignore_errors=True)
 

@@ -13,7 +13,7 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Security
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import APIKeyHeader
@@ -106,11 +106,15 @@ async def access_log(request: Request, call_next):
 class MemoryIn(BaseModel):
     text: str = Field(..., min_length=1, max_length=10_000)
     tags: list[str] = Field(default_factory=list, max_length=20)
+    source_agent: str | None = Field(None, max_length=50)
+    session_id: str | None = Field(None, max_length=100)
 
 
 class MemoryPatch(BaseModel):
     text: str | None = Field(None, min_length=1, max_length=10_000)
     tags: list[str] | None = Field(None, max_length=20)
+    source_agent: str | None = Field(None, max_length=50)
+    session_id: str | None = Field(None, max_length=100)
 
 
 class MemoryOut(BaseModel):
@@ -119,6 +123,8 @@ class MemoryOut(BaseModel):
     tags: list[str]
     created_at: str
     updated_at: str
+    source_agent: str | None = None
+    session_id: str | None = None
     score: float | None = None
     duplicate: bool | None = None
     similar_to: str | None = None
@@ -128,6 +134,24 @@ class MemoryOut(BaseModel):
 class PageOut(BaseModel):
     total: int
     items: list[MemoryOut]
+
+
+class RevisionOut(MemoryOut):
+    revision: int
+    deleted: bool
+
+
+class FeedItemOut(MemoryOut):
+    seq: int
+    op: str
+    deleted: bool
+    current: bool
+
+
+class FeedOut(BaseModel):
+    cursor: int
+    count: int
+    items: list[FeedItemOut]
 
 
 class ImportIn(BaseModel):
@@ -157,8 +181,17 @@ def stats():
     status_code=201,
     dependencies=[Depends(require_key)],
 )
-def add_memory(body: MemoryIn):
-    return store.add(body.text, body.tags)
+def add_memory(
+    body: MemoryIn,
+    x_agent: str | None = Header(None, alias="X-Agent"),
+    x_session: str | None = Header(None, alias="X-Session"),
+):
+    return store.add(
+        body.text,
+        body.tags,
+        source_agent=body.source_agent or x_agent,
+        session_id=body.session_id or x_session,
+    )
 
 
 @app.get(
@@ -199,20 +232,77 @@ def get_memory(memory_id: str):
     return store.get(memory_id)
 
 
+@app.get(
+    "/memories/{memory_id}/revisions",
+    response_model=list[RevisionOut],
+    response_model_exclude_none=True,
+    dependencies=[Depends(require_key)],
+)
+def memory_revisions(memory_id: str):
+    """Full edit history of one memory, oldest first."""
+    return store.revisions(memory_id)
+
+
 @app.patch(
     "/memories/{memory_id}",
     response_model=MemoryOut,
     response_model_exclude_none=True,
     dependencies=[Depends(require_key)],
 )
-def update_memory(memory_id: str, body: MemoryPatch):
-    return store.update(memory_id, text=body.text, tags=body.tags)
+def update_memory(
+    memory_id: str,
+    body: MemoryPatch,
+    x_agent: str | None = Header(None, alias="X-Agent"),
+    x_session: str | None = Header(None, alias="X-Session"),
+):
+    return store.update(
+        memory_id,
+        text=body.text,
+        tags=body.tags,
+        source_agent=body.source_agent or x_agent,
+        session_id=body.session_id or x_session,
+    )
 
 
-@app.delete("/memories/{memory_id}", status_code=204, dependencies=[Depends(require_key)])
-def delete_memory(memory_id: str):
-    if not store.delete(memory_id):
+@app.delete(
+    "/memories/{memory_id}",
+    status_code=204,
+    responses={404: {"description": "Memory not found"}},
+    dependencies=[Depends(require_key)],
+)
+def delete_memory(
+    memory_id: str,
+    x_agent: str | None = Header(None, alias="X-Agent"),
+    x_session: str | None = Header(None, alias="X-Session"),
+):
+    if not store.delete(memory_id, source_agent=x_agent, session_id=x_session):
         raise HTTPException(status_code=404, detail="Memory not found")
+
+
+@app.get(
+    "/feed",
+    response_model=FeedOut,
+    response_model_exclude_none=True,
+    dependencies=[Depends(require_key)],
+)
+def change_feed(
+    cursor: int = Query(0, ge=0),
+    agent: str | None = Query(None, max_length=50),
+    since: str | None = Query(None, max_length=40),
+    limit: int = Query(100, ge=1, le=1000),
+):
+    """Every revision in log order, so other agents can follow what changed.
+
+    Poll with the returned `cursor`; it is exact, unlike second-resolution
+    timestamps which can tie across rows.
+    """
+    return store.feed(cursor=cursor, agent=agent, since=since, limit=limit)
+
+
+@app.post("/admin/compact", dependencies=[Depends(require_key)])
+def compact():
+    """Drop superseded revisions and tombstones. Discards commit history."""
+    return store.compact()
 
 
 @app.get("/backup/export", dependencies=[Depends(require_key)])

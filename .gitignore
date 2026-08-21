@@ -5,6 +5,10 @@
 # The memory database (backups belong elsewhere, not in git)
 data/
 
+# Burn test output
+burn.log
+burn_server.log
+
 # Python
 __pycache__/
 *.pyc

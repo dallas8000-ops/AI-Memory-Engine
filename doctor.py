@@ -157,7 +157,6 @@ def check_main_dataset(model_dim: int | None):
         return
     import deeplake
 
-    uri = path.absolute().as_uri()
     try:
         ds = deeplake.load(str(path), verbose=False)
         n = len(ds)
@@ -186,8 +185,7 @@ def check_main_dataset(model_dim: int | None):
     if CHECK_ONLY:
         needs_human("Re-embed the dataset (run doctor.py without --check)")
         return
-    texts = ds["text"][:].numpy().reshape(-1).tolist()
-    tags = ds["tags"][:].numpy().reshape(-1).tolist()
+    texts, tags = _live_rows(ds)
     del ds
     backup = path.with_name(f"memories_backup_{datetime.now():%Y%m%d_%H%M%S}")
     shutil.move(str(path), str(backup))
@@ -198,6 +196,25 @@ def check_main_dataset(model_dim: int | None):
         if t.strip():
             store.add(t, [x for x in (tg or "").split(",") if x])
     fix(f"re-embedded {len(texts)} memories at {model_dim}-dim (backup: {backup.name})")
+
+
+def _live_rows(ds) -> tuple[list[str], list[str]]:
+    """(texts, tags) for current memories only.
+
+    The store is an append-only log, so replaying every row would resurrect
+    deleted memories and duplicate superseded revisions.
+    """
+    import numpy as np
+
+    texts = ds["text"][:].numpy().reshape(-1).tolist()
+    tags = ds["tags"][:].numpy().reshape(-1).tolist()
+    if "deleted" not in ds.tensors or "id" not in ds.tensors:
+        return texts, tags
+    ids = ds["id"][:].numpy().reshape(-1).tolist()
+    flags = np.asarray(ds["deleted"][:].numpy()).reshape(-1)
+    newest = {mid: i for i, mid in enumerate(ids)}
+    live = sorted(i for i in newest.values() if flags[i] == 0)
+    return [texts[i] for i in live], [tags[i] for i in live]
 
 
 # ── run the test suite ───────────────────────────────────────────────────

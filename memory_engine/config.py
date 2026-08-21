@@ -40,6 +40,14 @@ API_PORT = int(os.getenv("MEMORY_API_PORT", os.getenv("PORT", "8000")))
 # X-API-Key header. Leave empty for local-only development.
 API_KEY = os.getenv("MEMORY_API_KEY", "")
 
+# Scheme MCP clients use to reach the API. Empty means: plain HTTP for a
+# loopback address, HTTPS for anything remote.
+API_SCHEME = os.getenv("MEMORY_API_SCHEME", "").strip().lower()
+
+# Name this process reports as when it writes memories, so a shared store
+# shows which assistant contributed what. Any string; lowercased on write.
+AGENT_NAME = os.getenv("MEMORY_AGENT_NAME", "mcp")
+
 # Comma-separated list of allowed CORS origins (for a future web UI)
 CORS_ORIGINS = [
     o.strip()

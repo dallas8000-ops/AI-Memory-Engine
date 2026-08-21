@@ -18,6 +18,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from pathlib import Path
 
 try:  # MCP SDK >= 2.0
@@ -33,7 +34,17 @@ log = logging.getLogger("memory_engine.mcp")
 mcp = _Server("ai-memory-engine")
 
 _api_process: subprocess.Popen | None = None
-_api_url = f"http://{config.API_HOST}:{config.API_PORT}"
+
+_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1", "0.0.0.0"}
+_scheme = config.API_SCHEME or (
+    "http" if config.API_HOST in _LOOPBACK_HOSTS else "https"
+)
+_api_url = urllib.parse.urlunsplit(
+    (_scheme, f"{config.API_HOST}:{config.API_PORT}", "", "", "")
+)
+# One id per server process, so a store shared with other agents can group
+# everything this session wrote.
+_session_id = uuid.uuid4().hex
 
 
 def _ensure_api() -> None:
@@ -70,6 +81,8 @@ def _request(method: str, path: str, body: dict | None = None):
     _ensure_api()
     request = urllib.request.Request(f"{_api_url}{path}", method=method)
     request.add_header("Content-Type", "application/json")
+    request.add_header("X-Agent", config.AGENT_NAME)
+    request.add_header("X-Session", _session_id)
     if config.API_KEY:
         request.add_header("X-API-Key", config.API_KEY)
     data = json.dumps(body).encode() if body is not None else None
@@ -161,6 +174,27 @@ def delete_memory(memory_id: str) -> dict:
 def memory_stats() -> dict:
     """Overview of the memory store: total count, tag breakdown, model info."""
     return _safe(_request, "GET", "/stats")
+
+
+@mcp.tool()
+def recent_changes(cursor: int = 0, agent: str | None = None, limit: int = 50) -> dict:
+    """See what changed in the shared store, including what other assistants wrote.
+
+    Use this to pick up context from another agent (ChatGPT, Cursor, Claude)
+    working on the same problem, instead of re-deriving it.
+
+    Args:
+        cursor: Resume point from a previous call; 0 starts at the beginning.
+        agent: Only show changes written by this agent, e.g. "cursor".
+        limit: Maximum number of changes to return (default 50).
+
+    Returns each change with `op` (add/edit/delete), `source_agent`, and a
+    `cursor` to pass back next time.
+    """
+    params = f"cursor={cursor}&limit={limit}"
+    if agent:
+        params += f"&agent={urllib.parse.quote(agent)}"
+    return _safe(_request, "GET", f"/feed?{params}")
 
 
 if __name__ == "__main__":
