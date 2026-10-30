@@ -7,3 +7,7 @@ startCommand = "python server.py"
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
+
+[[volumes]]
+mountTo = "/data"
+name = "memory-data"

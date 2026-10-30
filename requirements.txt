@@ -1,10 +1,13 @@
 # Latest Deep Lake 3 release. Version 4 uses a breaking storage API.
 deeplake==3.9.52
-fastapi
+# Floors are the versions this was actually built and tested against
+# (see .venv) — prevents a fresh install silently pulling something
+# untested; raise deliberately, don't let pip pick for you.
+fastapi>=0.141.1
 # Deep Lake 3 patches asyncio.run without Uvicorn 0.36+'s loop_factory argument.
 uvicorn>=0.30,<0.36
-sentence-transformers
-mcp[cli]
-pydantic
-python-dotenv
-anthropic
+sentence-transformers>=5.7.0
+mcp[cli]>=2.0.0
+pydantic>=2.13.4
+python-dotenv>=1.2.2
+anthropic>=0.121.0

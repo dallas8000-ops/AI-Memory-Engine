@@ -1,0 +1,48 @@
+{
+  "appUrl": "http://localhost:8000",
+  "provision": {
+    "reuseExisting": true,
+    "createWebhook": true,
+    "createPortal": true
+  },
+  "tiers": [
+    {
+      "name": "Starter",
+      "description": "Essential features",
+      "amount": 900,
+      "currency": "usd",
+      "interval": "month",
+      "trialDays": 14,
+      "features": [
+        "Core features",
+        "Email support"
+      ]
+    },
+    {
+      "name": "Pro",
+      "description": "Growing teams",
+      "amount": 2900,
+      "currency": "usd",
+      "interval": "month",
+      "trialDays": 14,
+      "features": [
+        "Everything in Starter",
+        "Priority support",
+        "Team seats"
+      ]
+    },
+    {
+      "name": "Enterprise",
+      "description": "Full access",
+      "amount": 99000,
+      "currency": "usd",
+      "interval": "year",
+      "trialDays": 0,
+      "features": [
+        "Custom SLA",
+        "Dedicated support",
+        "SSO"
+      ]
+    }
+  ]
+}

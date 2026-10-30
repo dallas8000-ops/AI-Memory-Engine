@@ -1,0 +1,7 @@
+{
+  "deployedAt": "2026-10-02T15:37:03.638923+00:00",
+  "platform": "railway",
+  "productionUrl": "https://prolific-beauty-production-3b65.up.railway.app",
+  "postgresProvider": null,
+  "readinessScore": 100
+}

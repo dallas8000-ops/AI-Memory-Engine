@@ -1,0 +1,27 @@
+{
+  "productionUrl": "https://prolific-beauty-production-3b65.up.railway.app",
+  "environments": {
+    "test": {
+      "url": ""
+    },
+    "staging": {
+      "url": ""
+    },
+    "production": {
+      "url": "https://prolific-beauty-production-3b65.up.railway.app"
+    }
+  },
+  "platform": "railway",
+  "postgres": {
+    "provider": "railway",
+    "connectionEnvVar": "DATABASE_URL",
+    "autoProvision": true
+  },
+  "monitoring": {
+    "healthCheck": true
+  },
+  "backup": {
+    "enabled": true,
+    "retentionDays": 30
+  }
+}

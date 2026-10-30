@@ -9,6 +9,8 @@ pagination, tag-filtered search, update, stats, JSON backup/restore.
 from __future__ import annotations
 
 import logging
+import secrets
+import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -65,9 +67,48 @@ app.add_middleware(
 # ── auth (enabled only when MEMORY_API_KEY is set in .env) ───────────────
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
+# Naive in-process lockout for repeated bad keys: not a substitute for a
+# real rate limiter (it's per-worker, in-memory, and keyed on the direct
+# peer IP — a proxy in front of this needs to forward the real client IP
+# for this to mean anything), but it stops unlimited online guessing from
+# a single source, which unauthenticated /health + a non-lockout compare
+# used to allow for free.
+_FAILED_KEY_LIMIT = 10
+_FAILED_KEY_WINDOW_S = 60.0
+_FAILED_KEY_LOCKOUT_S = 60.0
+_auth_lock = threading.Lock()
+_failed_attempts: dict[str, list[float]] = {}
+_locked_until: dict[str, float] = {}
 
-def require_key(key: str | None = Security(api_key_header)):
-    if config.API_KEY and key != config.API_KEY:
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def _record_failure(ip: str, now: float) -> None:
+    with _auth_lock:
+        attempts = [t for t in _failed_attempts.get(ip, []) if now - t < _FAILED_KEY_WINDOW_S]
+        attempts.append(now)
+        _failed_attempts[ip] = attempts
+        if len(attempts) >= _FAILED_KEY_LIMIT:
+            _locked_until[ip] = now + _FAILED_KEY_LOCKOUT_S
+            _failed_attempts[ip] = []
+
+
+def require_key(request: Request, key: str | None = Security(api_key_header)):
+    if not config.API_KEY:
+        return
+    now = time.monotonic()
+    ip = _client_ip(request)
+    with _auth_lock:
+        locked = _locked_until.get(ip, 0.0)
+    if locked > now:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many invalid API keys from this address; retry in {int(locked - now)}s.",
+        )
+    if not (key and secrets.compare_digest(key, config.API_KEY)):
+        _record_failure(ip, now)
         raise HTTPException(status_code=401, detail="Invalid or missing X-API-Key header.")
 
 

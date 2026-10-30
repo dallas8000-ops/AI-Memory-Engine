@@ -1,0 +1,65 @@
+{
+  "createdAt": "2026-08-26T22:23:16.165565+00:00",
+  "updatedAt": "2026-08-26T23:14:10.979567+00:00",
+  "accountId": "acct_1TVQpaRxznXvj6jh",
+  "products": [
+    {
+      "id": "prod_UgdnrglonWJRHJ",
+      "name": "Starter"
+    },
+    {
+      "id": "prod_UgdnxRJpOWdgQf",
+      "name": "Pro"
+    },
+    {
+      "id": "prod_UggtJaJtr8qLqv",
+      "name": "Enterprise"
+    }
+  ],
+  "prices": [
+    {
+      "id": "price_1ThJVmRxznXvj6jhqPmFSLNM",
+      "tier": "Starter",
+      "amount": 900,
+      "currency": "usd",
+      "interval": "month",
+      "trialDays": 14,
+      "features": [
+        "Core features",
+        "Email support"
+      ]
+    },
+    {
+      "id": "price_1ThJVmRxznXvj6jh2aTzRO4V",
+      "tier": "Pro",
+      "amount": 2900,
+      "currency": "usd",
+      "interval": "month",
+      "trialDays": 14,
+      "features": [
+        "Everything in Starter",
+        "Priority support",
+        "Team seats"
+      ]
+    },
+    {
+      "id": "price_1ThJVnRxznXvj6jhy8uXBJ0z",
+      "tier": "Enterprise",
+      "amount": 99000,
+      "currency": "usd",
+      "interval": "year",
+      "trialDays": 0,
+      "features": [
+        "Custom SLA",
+        "Dedicated support",
+        "SSO"
+      ]
+    }
+  ],
+  "webhookEndpoint": null,
+  "billingPortalConfig": {
+    "id": "bpc_1U8pDzRxznXvj6jhbixa3Ccy",
+    "reused": true
+  },
+  "appUrl": "http://localhost:8000"
+}

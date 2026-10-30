@@ -56,11 +56,31 @@ CORS_ORIGINS = [
 ]
 
 
+# Hosts that only accept connections from this machine. "0.0.0.0" is
+# deliberately excluded: it means "bind every interface", i.e. reachable
+# from outside — the opposite of loopback-only.
+_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
 def validate_deployment_config() -> None:
-    """Prevent insecure or non-persistent Railway deployments."""
+    """Prevent insecure or non-persistent deployments.
+
+    Railway gets its own explicit checks (volume + key) because it's the
+    documented deployment target. But any deployment — Railway or not —
+    that binds to a non-loopback host without an API key is silently open
+    to the network it's reachable on, so that case is refused generically
+    rather than only being caught when Railway's own env vars are present.
+    """
     if ON_RAILWAY and not _data_path_env:
         raise RuntimeError(
             "MEMORY_DATA_PATH must be set to a Railway Volume path, such as /data/memories."
         )
     if ON_RAILWAY and not API_KEY:
         raise RuntimeError("MEMORY_API_KEY must be set for a Railway deployment.")
+    if API_HOST not in _LOOPBACK_HOSTS and not API_KEY:
+        raise RuntimeError(
+            f"MEMORY_API_KEY must be set when binding to a non-loopback host "
+            f"({API_HOST!r}) — otherwise every memory is readable and writable "
+            "by anyone who can reach this port. Set MEMORY_API_KEY, or bind to "
+            "127.0.0.1 for local-only use."
+        )
