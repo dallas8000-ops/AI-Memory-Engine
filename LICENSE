@@ -1,0 +1,111 @@
+PROPRIETARY SOFTWARE LICENSE
+
+AI-Memory-Engine
+Copyright (c) 2026 Barney R. Gilliom. All rights reserved.
+
+------------------------------------------------------------------------------
+PLAIN-ENGLISH SUMMARY (the full terms below control)
+
+You may look at this code. You may not copy it, use it, change it, or share
+it for any purpose without the owner's written permission. It is published
+so that employers, clients, and reviewers can evaluate the owner's work.
+------------------------------------------------------------------------------
+
+1. OWNERSHIP
+
+The source code, object code, documentation, designs, database schemas,
+configuration, assets, and all other files in this repository (together,
+the "Software") are the exclusive property of Barney R. Gilliom (the
+"Owner") and are protected by copyright and other intellectual property
+laws of the United States and other countries. The Software is licensed,
+not sold. No ownership interest is transferred to you.
+
+2. WHAT YOU MAY DO
+
+Because this repository is publicly visible on GitHub, you may:
+
+  (a) view the Software through the GitHub website; and
+  (b) use GitHub's own features to view and fork the repository, only to
+      the extent GitHub's Terms of Service require the Owner to allow it.
+
+You may do so only to review and evaluate the Owner's skills and work.
+Forking on GitHub does not grant any right to use the Software outside
+GitHub or for any other purpose.
+
+3. WHAT YOU MAY NOT DO
+
+Unless the Owner first gives you written permission, you may not, in
+whole or in part:
+
+  (a) copy, download, clone, or reproduce the Software for any use other
+      than viewing it as described in Section 2;
+  (b) run, deploy, host, or use the Software, including as part of any
+      product, website, application, or service, whether commercial or
+      non-commercial;
+  (c) modify, adapt, translate, or create derivative works based on the
+      Software;
+  (d) distribute, publish, sublicense, sell, rent, lease, or otherwise
+      make the Software available to anyone else;
+  (e) use the Software, or any part of it, to train, fine-tune, or
+      evaluate any artificial intelligence or machine learning system, or
+      include it in any dataset;
+  (f) reverse engineer, decompile, or disassemble any compiled form of
+      the Software, except where applicable law expressly permits this
+      despite this restriction; or
+  (g) remove, change, or hide any copyright, license, or ownership notice.
+
+4. NO OTHER RIGHTS
+
+No rights or licenses are granted except those stated in Section 2. No
+license is granted by implication, estoppel, or otherwise. The Owner's
+names, product names, logos, and trademarks may not be used without
+written permission. Any earlier statement in this repository suggesting
+an open-source license (such as "MIT") is withdrawn and replaced by this
+License.
+
+5. THIRD-PARTY COMPONENTS
+
+Some files or dependencies in this repository may be owned by others and
+provided under their own licenses. Those components remain governed by
+their own licenses, and nothing in this License restricts your rights
+under them. This License applies to everything else.
+
+6. PERMISSION REQUESTS
+
+To request permission for any use not allowed above, including
+commercial licensing, contact the Owner through
+https://gilliomfrontlinedigital.com. Permission is valid only if given
+in writing by the Owner.
+
+7. TERMINATION
+
+Any use of the Software that breaks this License is unauthorized and
+ends any permission you had under it, automatically and without notice.
+Unauthorized use may infringe the Owner's copyright and other rights, and
+the Owner reserves all remedies available under law, including
+injunctive relief and damages.
+
+8. NO WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+9. LIMITATION OF LIABILITY
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT SHALL THE OWNER BE
+LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN CONTRACT,
+TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE
+SOFTWARE OR ANY USE OF IT.
+
+10. GOVERNING LAW
+
+This License is governed by the laws of the State of Florida, United
+States of America, and applicable U.S. federal law, without regard to
+conflict-of-law rules.
+
+11. ENTIRE LICENSE
+
+This License is the complete statement of the permissions granted for
+the Software. If any part of it is found unenforceable, the rest remains
+in effect.
